@@ -10,8 +10,9 @@
 
 module Main where
 
-import Data.Default
+import Data.List (intercalate, genericReplicate)
 import Data.Text (Text)
+import Data.Default
 import qualified Data.Map as M
 import Data.Acid.Local (createCheckpointAndClose)
 import Control.Exception (bracket)
@@ -78,6 +79,7 @@ lookupNode (x:[]) (Node _ m) = M.lookup x m
 lookupNode (x:xs) (Node _ m) = M.lookup x m >>= lookupNode xs
 
 qLookupNode :: [NodeID] -> Query Node (Maybe Node)
+qLookupNode [] = pure <$> ask
 qLookupNode xs = lookupNode xs <$> ask
 
 $(deriveSafeCopy 0 'base ''NodeData)
@@ -95,14 +97,19 @@ template title body = H.docTypeHtml $ do
     H.body $ do
         body
 
+outputNode :: Integer -> Node -> [String]
+outputNode indent (Node nData nMap) = this : rest
+  where this = genericReplicate indent ' ' ++ show (nodeID nData)
+        rest = concatMap (outputNode (indent + 2) . snd) (M.toAscList nMap)
+
 route :: Route -> Memory Response
 route Search        = ok $ toResponse $ template "Search" $ H.h1 "Search"
-route (NewNode xs)  = do
-    mNode <- update (UInsertNode def xs) 
-    ok $ toResponse $ template "New Node"  $ H.pre (toHtml $ show mNode)
-route (ViewNode xs) = do
-    mNode <- query (QLookupNode xs)
-    ok $ toResponse $ template "View Node" $ H.pre (toHtml $ show mNode)
+route (NewNode xs)  = update (UInsertNode def xs) >>= \case
+    Nothing   -> internalServerError $ toResponse $ template "Internal Server Error" $ "Failed to insert node"
+    Just node -> ok                  $ toResponse $ template "New Node"  $ H.pre $ toHtml $ intercalate "\n" (outputNode 0 node)
+route (ViewNode xs) = query (QLookupNode xs) >>= \case
+    Nothing   -> internalServerError $ toResponse $ template "Internal Server Error" $ "Failed to lookup node"
+    Just node -> ok                  $ toResponse $ template "View Node" $ H.pre $ toHtml $ intercalate "\n" (outputNode 0 node)
 
 main :: IO ()
 main = withAcid $ \root -> do
