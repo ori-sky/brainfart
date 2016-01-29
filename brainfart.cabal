@@ -1,4 +1,4 @@
-name:                memory
+name:                brainfart
 version:             0.1.0.0
 synopsis:            Backend memory bank
 description:         Backend for a memory bank system
@@ -13,11 +13,14 @@ cabal-version:       >=1.10
 
 source-repository head
   type:                git
-  location:            https://github.com/shockkolate/memory.git
+  location:            https://github.com/shockkolate/brainfart.git
 
 library
-  exposed-modules:     Data.Memory
-  build-depends:       base >=4.8 && <5.0
+  exposed-modules:     Data.Memory,
+                       Data.Memory.Types
+                       Data.Memory.DB.Acid
+  build-depends:       base >=4.8 && <5.0, containers >=0.5, mtl >=2.2, text >=1.2, data-default >=0.5,
+                       safecopy >=0.9, acid-state >=0.14
   default-language:    Haskell2010
   hs-source-dirs:      src
   ghc-options:         -W
@@ -27,7 +30,7 @@ test-suite example-basic
   type:                exitcode-stdio-1.0
   main-is:             Main.hs
   build-depends:       base >=4.8 && <5.0, containers >=0.5, text >=1.2, data-default >=0.5,
-                       acid-state >=0.14, blaze-html >=0.8, happstack-foundation >=0.5, memory
+                       blaze-html >=0.8, happstack-foundation >=0.5, brainfart
   default-language:    Haskell2010
   hs-source-dirs:      examples/basic
   ghc-options:         -W
