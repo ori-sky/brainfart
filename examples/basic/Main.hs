@@ -44,20 +44,22 @@ type MemoryForm = FoundationForm Route MemoryAcid () IO
 instance (Functor m, Monad m) => HasAcidState (FoundationT' url MemoryAcid s m) Node where
     getAcidState = acidMemory <$> getAcidSt
 
-outputNode :: Node -> Html
-outputNode (Node nData nMap) = H.div ! A.class_ "box" $ do
-    toHtml (nodeText nData)
-    traverse_ (outputNode . snd) (M.toAscList nMap)
+outputNode :: [NodeID] -> Node -> Html
+outputNode xs (Node nData nMap) = H.div ! A.class_ "box" $ do
+    H.a ! A.href href $ toHtml (nodeText nData)
+    traverse_ f (M.toAscList nMap)
+  where href = H.toValue $ toPathInfo (ViewNode xs)
+        f (nnID, nn) = outputNode (xs ++ [nnID]) nn
 
 route :: Route -> Memory Response
 route Search = ok $ toResponse $ template "Search" $ H.h1 "Search"
 route (NewNode xs text) = update (UInsertNode node xs) >>= \case
     Nothing   -> internalServerError $ toResponse $ template "Internal Server Error" $ "Failed to insert node"
-    Just node -> ok                  $ toResponse $ template "New Node"  $ H.pre (outputNode node)
+    Just node -> ok                  $ toResponse $ template "New Node"  $ H.pre $ outputNode xs node
   where node = def { nodeData = def { nodeText = text } }
 route (ViewNode xs) = query (QLookupNode xs) >>= \case
     Nothing   -> internalServerError $ toResponse $ template "Internal Server Error" $ "Failed to lookup node"
-    Just node -> ok                  $ toResponse $ template "View Node" $ H.pre (outputNode node)
+    Just node -> ok                  $ toResponse $ template "View Node" $ H.pre $ outputNode xs node
 route Css = ok (toResponse css)
 
 main :: IO ()
